@@ -1,52 +1,45 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const express = require('express');
+const bodyParser = require('body-parser');
+const request = require('request');
+const app = express();
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+const apiKey = 'c956e9ddd48de848ff19bc7a256a3f96';
 
-var app = express();
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
-
-app.get('/', function (req, res)
-{
-    res.render('index');
-});
-app.listen(3000, function ()
-{
-    console.log('Example app listening on port 3000!')
-});
-
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({extended: false}));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static('public'));
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+app.use(bodyParser.urlencoded({extended: true}));
+app.set('view engine', 'ejs');
 
-// catch 404 and forward to error handler
-app.use(function (req, res, next)
+app.get('/weather', function (req, res)
 {
-    next(createError(404));
+    res.render('index', {weather: null, error: null});
 });
 
-// error handler
-app.use(function (err, req, res, next)
+app.post('/weather', function (req, res)
 {
-    // set locals, only providing error in development
-    res.locals.message = err.message;
-    res.locals.error = req.app.get('env') === 'development' ? err : {};
+    let city = req.body.city;
+    let url = `http://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${apiKey}`;
 
-    // render the error page
-    res.status(err.status || 500);
-    res.render('error');
+    request(url, function (err, response, body)
+    {
+        if (err)
+        {
+            res.render('index', {weather: null, error: 'Error, please try again'});
+        } else
+        {
+            let weather = JSON.parse(body);
+            if (weather.main === undefined)
+            {
+                res.render('index', {weather: null, error: 'Error, please try again'});
+            } else
+            {
+                let weatherText = `It's ${weather.main.temp} degrees in ${weather.name}!`;
+                res.render('index', {weather: weatherText, error: null});
+            }
+        }
+    });
 });
-
-module.exports = app;
+const port = process.env.port || 3000;
+app.listen(port, function ()
+{
+    console.log('App listening on port http://localhost:' + port + '/weather');
+});
